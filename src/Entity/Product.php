@@ -6,9 +6,9 @@ use App\Repository\ProductRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
-#[InheritanceType('SINGLE_TABLE')]
-#[DiscriminatorColumn(name: 'discr', type: 'string')]
-#[DiscriminatorMap(['e-liquid' => Eliquid::class, 'box' => Box::class])]
+#[ORM\InheritanceType('SINGLE_TABLE')]
+#[ORM\DiscriminatorColumn(name: 'discr', type: 'string')]
+#[ORM\DiscriminatorMap(['e-liquid' => Eliquid::class, 'box' => Box::class])]
 class Product
 {
     #[ORM\Id]
@@ -30,14 +30,14 @@ class Product
     #[ORM\Column]
     private ?int $price = null;
 
-    #[ManyToOne(targetEntity: Brand::class)]    
-    #[JoinColumn(name: 'brand_id', referencedColumnName: 'id')]   
+    #[ORM\ManyToOne(targetEntity: Brand::class)]    
+    #[ORM\JoinColumn(name: 'brand_id', referencedColumnName: 'id')]   
 
     private Brand|null $brand = null;
 
-    #[OneToMany(targetEntity: OrderLine::class, mappedBy: 'product')]    
+    #[ORM\OneToMany(targetEntity: OrderLine::class, mappedBy: 'product')]    
     private Collection $orderLines;
-    #[OneToMany(targetEntity: CartLine::class, mappedBy: 'product')]    
+    #[ORM\OneToMany(targetEntity: CartLine::class, mappedBy: 'product')]    
     private Collection $cartLines;
 
     public function getId(): ?int

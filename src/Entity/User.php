@@ -7,12 +7,13 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
+#[ApiResource]
 class User
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[ApiResource]
+    
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -24,10 +25,10 @@ class User
     #[ORM\Column(length: 255)]
     private ?string $address = null;
 
-    #[OneToMany(targetEntity: Order::class, mappedBy: 'user')] 
+    #[ORM\OneToMany(targetEntity: Order::class, mappedBy: 'user')] 
     private Collection $orders;
 
-    #[OneToMany(targetEntity: CartLine::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: CartLine::class, mappedBy: 'user')]
     private Collection $cartLines;
 
     public function getId(): ?int

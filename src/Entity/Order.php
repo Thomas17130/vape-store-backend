@@ -22,11 +22,11 @@ class Order
     #[ORM\Column]
     private ?int $numberOrder = null;
 
-    #[OneToMany(targetEntity: OrderLine::class, mappedBy: 'order')]    
+    #[ORM\OneToMany(targetEntity: OrderLine::class, mappedBy: 'order')]    
     private Collection $orderLines;
 
-    #[ManyToOne(targetEntity: User::class)]
-    #[JoinColumn(name: 'user_id', referencedColumnName: 'id')] 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id')] 
     private User|null $user = null;
 
     public function getId(): ?int
