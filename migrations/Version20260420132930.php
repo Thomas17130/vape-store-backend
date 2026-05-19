@@ -19,15 +19,13 @@ final class Version20260420132930 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        // this up() migration is auto-generated, please modify it to your needs
         $this->addSql('ALTER TABLE cartline ADD quantity INT NOT NULL');
         $this->addSql('ALTER TABLE order_line ADD quantity INT NOT NULL');
     }
 
     public function down(Schema $schema): void
     {
-        // this down() migration is auto-generated, please modify it to your needs
-        $this->addSql('ALTER TABLE cartline DROP quantity');
-        $this->addSql('ALTER TABLE order_line DROP quantity');
+        $this->addSql('ALTER TABLE cartline DROP COLUMN quantity');
+        $this->addSql('ALTER TABLE order_line DROP COLUMN quantity');
     }
 }

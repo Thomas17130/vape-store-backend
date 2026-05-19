@@ -16,6 +16,18 @@ class UserRepository extends ServiceEntityRepository
         parent::__construct($registry, User::class);
     }
 
+    public function hasAtLeastOneAdmin(): bool
+    {
+        $count = (int) $this->createQueryBuilder('u')
+            ->select('COUNT(u.id)')
+            ->andWhere('u.role = :role')
+            ->setParameter('role', User::ROLE_ADMIN)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
+    }
+
     //    /**
     //     * @return User[] Returns an array of User objects
     //     */
