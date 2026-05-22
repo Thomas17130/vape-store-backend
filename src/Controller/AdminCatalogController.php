@@ -172,12 +172,19 @@ class AdminCatalogController extends AbstractController
             return $guard;
         }
 
-        $payload = $this->readPayload($request);
-        if ($payload === null) {
-            return new JsonResponse(['error' => 'Corps JSON invalide'], Response::HTTP_BAD_REQUEST);
+        $uploadedFile = $request->files->get('image');
+        $payload = [];
+
+        if ($uploadedFile !== null) {
+            $payload = $request->request->all();
+        } else {
+            $payload = $this->readPayload($request);
+            if ($payload === null) {
+                return new JsonResponse(['error' => 'Corps JSON invalide'], Response::HTTP_BAD_REQUEST);
+            }
         }
 
-        $url = trim((string) ($payload['url'] ?? ''));
+        $url = $uploadedFile === null ? trim((string) ($payload['url'] ?? '')) : $this->storeUploadedProductImage($uploadedFile);
         if ($url === '') {
             return new JsonResponse(['error' => 'url est requis'], Response::HTTP_BAD_REQUEST);
         }
@@ -568,6 +575,22 @@ class AdminCatalogController extends AbstractController
         } catch (\JsonException) {
             return null;
         }
+    }
+
+    private function storeUploadedProductImage($uploadedFile): string
+    {
+        $extension = $uploadedFile->guessExtension() ?: $uploadedFile->getClientOriginalExtension() ?: 'bin';
+        $extension = strtolower(preg_replace('/[^a-z0-9]+/i', '', $extension) ?: 'bin');
+        $filename = sprintf('%s.%s', bin2hex(random_bytes(12)), $extension);
+        $uploadDir = $this->getParameter('kernel.project_dir').'/public/uploads/products';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+
+        $uploadedFile->move($uploadDir, $filename);
+
+        return '/uploads/products/'.$filename;
     }
 
     private function instantiateProductByType(string $type): Product

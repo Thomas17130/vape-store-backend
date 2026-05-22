@@ -3,8 +3,6 @@ services:
 ###> doctrine/doctrine-bundle ###
   database:
     image: mariadb:${MARIADB_VERSION:-10.11}
-    ports:
-      - "3307:3306"
     environment:
       MARIADB_DATABASE: ${MARIADB_DATABASE:-vape}
       MARIADB_USER: ${MARIADB_USER:-app}
