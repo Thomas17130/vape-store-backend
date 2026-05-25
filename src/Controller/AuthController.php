@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\JwtTokenManager;
 use App\Security\RequestAuth;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,8 +16,10 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/auth')]
 class AuthController extends AbstractController
 {
-    public function __construct(private readonly RequestAuth $requestAuth)
-    {
+    public function __construct(
+        private readonly RequestAuth $requestAuth,
+        private readonly JwtTokenManager $jwtTokenManager,
+    ) {
     }
 
     #[Route('/signup', name: 'api_auth_signup', methods: ['POST'])]
@@ -54,16 +57,16 @@ class AuthController extends AbstractController
         $user->setAddress($address);
         $user->setPasswordHash(password_hash($password, PASSWORD_ARGON2ID));
         $user->setRole($userRepository->hasAtLeastOneAdmin() ? User::ROLE_USER : User::ROLE_ADMIN);
-        $user->setAuthToken($this->generateAuthToken());
+        $refreshToken = $this->jwtTokenManager->createRefreshToken($user);
 
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return new JsonResponse([
-            'message' => 'Inscription reussie',
-            'token' => $user->getAuthToken(),
-            'user' => $this->toUserArray($user),
-        ], Response::HTTP_CREATED);
+        return new JsonResponse($this->authResponse(
+            message: 'Inscription reussie',
+            user: $user,
+            refreshToken: $refreshToken,
+        ), Response::HTTP_CREATED);
     }
 
     #[Route('/login', name: 'api_auth_login', methods: ['POST'])]
@@ -85,15 +88,53 @@ class AuthController extends AbstractController
             return new JsonResponse(['error' => 'Identifiants invalides'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $user->setAuthToken($this->generateAuthToken());
+        $refreshToken = $this->jwtTokenManager->createRefreshToken($user);
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return new JsonResponse([
-            'message' => 'Connexion reussie',
-            'token' => $user->getAuthToken(),
-            'user' => $this->toUserArray($user),
-        ]);
+        return new JsonResponse($this->authResponse(
+            message: 'Connexion reussie',
+            user: $user,
+            refreshToken: $refreshToken,
+        ));
+    }
+
+    #[Route('/refresh', name: 'api_auth_refresh', methods: ['POST'])]
+    public function refresh(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $payload = $this->readPayload($request);
+        if ($payload === null) {
+            return new JsonResponse(['error' => 'Corps JSON invalide'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $refreshToken = isset($payload['refreshToken']) ? trim((string) $payload['refreshToken']) : '';
+        $user = $this->jwtTokenManager->resolveUserFromRefreshToken($refreshToken);
+        if ($user === null) {
+            return new JsonResponse(['error' => 'Refresh token invalide ou expire'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $newRefreshToken = $this->jwtTokenManager->createRefreshToken($user);
+        $entityManager->flush();
+
+        return new JsonResponse($this->authResponse(
+            message: 'Session renouvelee',
+            user: $user,
+            refreshToken: $newRefreshToken,
+        ));
+    }
+
+    #[Route('/logout', name: 'api_auth_logout', methods: ['POST'])]
+    public function logout(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $user = $this->requestAuth->resolveUser($request);
+        if ($user === null) {
+            return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+        }
+
+        $this->jwtTokenManager->invalidateRefreshToken($user);
+        $entityManager->flush();
+
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
 
     #[Route('/me', name: 'api_auth_me', methods: ['GET'])]
@@ -208,8 +249,15 @@ class AuthController extends AbstractController
         ];
     }
 
-    private function generateAuthToken(): string
+    private function authResponse(string $message, User $user, string $refreshToken): array
     {
-        return bin2hex(random_bytes(32));
+        return [
+            'message' => $message,
+            'token' => $this->jwtTokenManager->createAccessToken($user),
+            'expiresIn' => $this->jwtTokenManager->getAccessTokenTtl(),
+            'refreshToken' => $refreshToken,
+            'refreshExpiresAt' => $user->getRefreshTokenExpiresAt()?->format(\DateTimeInterface::ATOM),
+            'user' => $this->toUserArray($user),
+        ];
     }
 }

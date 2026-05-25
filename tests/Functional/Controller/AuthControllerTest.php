@@ -8,7 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class AuthControllerTest extends WebTestCase
 {
-    private EntityManagerInterface $entityManager;
+    protected ?EntityManagerInterface $entityManager = null;
 
     protected function setUp(): void
     {
@@ -32,9 +32,10 @@ class AuthControllerTest extends WebTestCase
         
         $this->assertResponseCreated();
         $response = $this->getJsonResponse();
-        $this->assertJsonHasKeys(['message', 'token', 'user']);
+        $this->assertJsonHasKeys(['message', 'token', 'refreshToken', 'refreshExpiresAt', 'user']);
         $this->assertEquals('Inscription reussie', $response['message']);
         $this->assertNotEmpty($response['token']);
+        $this->assertNotEmpty($response['refreshToken']);
         $this->assertEquals('john.doe@example.com', $response['user']['email']);
     }
 
@@ -46,7 +47,6 @@ class AuthControllerTest extends WebTestCase
         $payload = [
             'name' => 'John Doe',
             'email' => 'john@example.com',
-            // Missing address and password
         ];
 
         $this->post('/api/auth/signup', $payload);
@@ -85,7 +85,7 @@ class AuthControllerTest extends WebTestCase
             'name' => 'John Doe',
             'email' => 'john.short@example.com',
             'address' => '123 Main Street',
-            'password' => 'Short1', // Less than 8 characters
+            'password' => 'Short1',
         ];
 
         $this->post('/api/auth/signup', $payload);
@@ -101,9 +101,8 @@ class AuthControllerTest extends WebTestCase
      */
     public function testSignupDuplicateEmail(): void
     {
-        $email = 'duplicate@example.com';
+        $email = 'duplicate.'.bin2hex(random_bytes(4)).'@example.com';
         
-        // First signup
         $payload1 = [
             'name' => 'User One',
             'email' => $email,
@@ -115,7 +114,6 @@ class AuthControllerTest extends WebTestCase
         $this->assertResponseCreated();
         $this->flushDatabase();
 
-        // Second signup with same email
         $payload2 = [
             'name' => 'User Two',
             'email' => $email,
@@ -136,7 +134,6 @@ class AuthControllerTest extends WebTestCase
      */
     public function testLoginSuccess(): void
     {
-        // Create a user first
         $user = new User();
         $user->setName('Login Test User');
         $user->setEmail('logintest@example.com');
@@ -148,7 +145,6 @@ class AuthControllerTest extends WebTestCase
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        // Now try to login
         $payload = [
             'email' => 'logintest@example.com',
             'password' => 'TestPassword123',
@@ -158,8 +154,54 @@ class AuthControllerTest extends WebTestCase
         
         $this->assertResponseOk();
         $response = $this->getJsonResponse();
-        $this->assertJsonHasKeys(['message', 'token', 'user']);
+        $this->assertJsonHasKeys(['message', 'token', 'refreshToken', 'refreshExpiresAt', 'user']);
         $this->assertNotEmpty($response['token']);
+        $this->assertNotEmpty($response['refreshToken']);
+    }
+
+    public function testMeAcceptsJwtBearerToken(): void
+    {
+        $payload = [
+            'name' => 'JWT User',
+            'email' => 'jwt.user@example.com',
+            'address' => '123 Main Street',
+            'password' => 'SecurePassword123',
+        ];
+
+        $this->post('/api/auth/signup', $payload);
+        $this->assertResponseCreated();
+        $response = $this->getJsonResponse();
+
+        $this->get('/api/auth/me', [
+            'HTTP_AUTHORIZATION' => sprintf('Bearer %s', $response['token']),
+        ]);
+
+        $this->assertResponseOk();
+        $me = $this->getJsonResponse();
+        $this->assertSame('jwt.user@example.com', $me['user']['email']);
+    }
+
+    public function testRefreshRotatesTokens(): void
+    {
+        $payload = [
+            'name' => 'Refresh User',
+            'email' => 'refresh.user@example.com',
+            'address' => '123 Main Street',
+            'password' => 'SecurePassword123',
+        ];
+
+        $this->post('/api/auth/signup', $payload);
+        $this->assertResponseCreated();
+        $response = $this->getJsonResponse();
+
+        $this->post('/api/auth/refresh', [
+            'refreshToken' => $response['refreshToken'],
+        ]);
+
+        $this->assertResponseOk();
+        $refreshed = $this->getJsonResponse();
+        $this->assertJsonHasKeys(['token', 'refreshToken', 'user']);
+        $this->assertNotSame($response['refreshToken'], $refreshed['refreshToken']);
     }
 
     /**
@@ -179,15 +221,13 @@ class AuthControllerTest extends WebTestCase
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        // Try to login with wrong password
         $payload = [
             'email' => 'wrongpass@example.com',
             'password' => 'WrongPassword123',
         ];
 
         $this->post('/api/auth/login', $payload);
-        
-        // Should fail
+    
         $this->assertTrue(
             in_array($this->client->getResponse()->getStatusCode(), [400, 401, 404]),
             'Login with wrong password should fail'
@@ -206,7 +246,6 @@ class AuthControllerTest extends WebTestCase
 
         $this->post('/api/auth/login', $payload);
         
-        // Should fail
         $this->assertTrue(
             in_array($this->client->getResponse()->getStatusCode(), [400, 401, 404]),
             'Login with non-existent user should fail'
@@ -220,7 +259,6 @@ class AuthControllerTest extends WebTestCase
     {
         $payload = [
             'email' => 'test@example.com',
-            // Missing password
         ];
 
         $this->post('/api/auth/login', $payload);

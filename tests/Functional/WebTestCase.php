@@ -4,7 +4,7 @@ namespace App\Tests\Functional;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase as BaseWebTestCase;
-use Symfony\Bundle\FrameworkBundle\Client;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -14,7 +14,7 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 abstract class WebTestCase extends BaseWebTestCase
 {
-    protected ?Client $client = null;
+    protected ?KernelBrowser $client = null;
     protected ?EntityManagerInterface $entityManager = null;
 
     protected function setUp(): void
@@ -22,6 +22,7 @@ abstract class WebTestCase extends BaseWebTestCase
         parent::setUp();
         
         $this->client = static::createClient();
+        $this->client->disableReboot();
         
         // Get the service container
         $this->entityManager = $this->getContainer()->get(EntityManagerInterface::class);

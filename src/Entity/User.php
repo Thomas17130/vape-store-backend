@@ -37,6 +37,12 @@ class User
     #[ORM\Column(length: 80, nullable: true, unique: true)]
     private ?string $authToken = null;
 
+    #[ORM\Column(length: 64, nullable: true, unique: true)]
+    private ?string $refreshTokenHash = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $refreshTokenExpiresAt = null;
+
     #[ORM\OneToMany(targetEntity: Order::class, mappedBy: 'user')]
     private Collection $orders;
 
@@ -156,6 +162,30 @@ class User
     public function setAuthToken(?string $authToken): static
     {
         $this->authToken = $authToken;
+
+        return $this;
+    }
+
+    public function getRefreshTokenHash(): ?string
+    {
+        return $this->refreshTokenHash;
+    }
+
+    public function setRefreshTokenHash(?string $refreshTokenHash): static
+    {
+        $this->refreshTokenHash = $refreshTokenHash;
+
+        return $this;
+    }
+
+    public function getRefreshTokenExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->refreshTokenExpiresAt;
+    }
+
+    public function setRefreshTokenExpiresAt(?\DateTimeImmutable $refreshTokenExpiresAt): static
+    {
+        $this->refreshTokenExpiresAt = $refreshTokenExpiresAt;
 
         return $this;
     }

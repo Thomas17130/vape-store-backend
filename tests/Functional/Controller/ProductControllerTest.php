@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class ProductControllerTest extends WebTestCase
 {
-    private EntityManagerInterface $entityManager;
+    protected ?EntityManagerInterface $entityManager = null;
 
     protected function setUp(): void
     {

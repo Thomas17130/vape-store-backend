@@ -1,8 +1,0 @@
-api_platform:
-    title: Vape Store Bordelais API
-    version: 1.0.0
-    defaults:
-        stateless: true
-        cache_headers:
-            vary: ['Content-Type', 'Authorization', 'Origin']
-

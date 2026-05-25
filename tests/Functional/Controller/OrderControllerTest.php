@@ -2,7 +2,6 @@
 
 namespace App\Tests\Functional\Controller;
 
-use App\Entity\Cartline;
 use App\Entity\Order;
 use App\Entity\OrderLine;
 use App\Entity\Product;
@@ -12,7 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class OrderControllerTest extends WebTestCase
 {
-    private EntityManagerInterface $entityManager;
+    protected ?EntityManagerInterface $entityManager = null;
 
     protected function setUp(): void
     {
@@ -21,11 +20,11 @@ class OrderControllerTest extends WebTestCase
     }
 
     /**
-     * Test: GET /api/orders - List orders (should require authentication)
+     * Test: GET /api/store/orders - List orders (should require authentication)
      */
     public function testListOrdersRequiresAuth(): void
     {
-        $this->get('/api/orders');
+        $this->get('/api/store/orders');
         
         // Should be protected
         $this->assertTrue(
@@ -76,20 +75,19 @@ class OrderControllerTest extends WebTestCase
         // Create an order with order lines
         $order = new Order();
         $order->setUser($user);
-        $order->setStatus(Order::STATUS_PENDING);
+        $order->setDateOfCreation(new \DateTime());
+        $order->setNumberOrder(1001);
 
         // Add order lines
         $line1 = new OrderLine();
         $line1->setOrder($order);
         $line1->setProduct($product1);
         $line1->setQuantity(2);
-        $line1->setUnitPrice(1999);
 
         $line2 = new OrderLine();
         $line2->setOrder($order);
         $line2->setProduct($product2);
         $line2->setQuantity(1);
-        $line2->setUnitPrice(2999);
 
         $this->entityManager->persist($order);
         $this->entityManager->persist($line1);
@@ -98,7 +96,10 @@ class OrderControllerTest extends WebTestCase
 
         // Verify the order was created
         $this->assertNotNull($order->getId());
-        $this->assertEquals(2, count($order->getOrderLines()));
+        $this->assertNotNull($line1->getId());
+        $this->assertNotNull($line2->getId());
+        $this->assertSame($order, $line1->getOrder());
+        $this->assertSame($order, $line2->getOrder());
     }
 
     /**
@@ -127,13 +128,13 @@ class OrderControllerTest extends WebTestCase
         // Create order
         $order = new Order();
         $order->setUser($user);
-        $order->setStatus(Order::STATUS_PENDING);
+        $order->setDateOfCreation(new \DateTime());
+        $order->setNumberOrder(1002);
 
         $line = new OrderLine();
         $line->setOrder($order);
         $line->setProduct($product);
         $line->setQuantity(1);
-        $line->setUnitPrice(1499);
 
         $this->entityManager->persist($user);
         $this->entityManager->persist($product);
@@ -142,9 +143,9 @@ class OrderControllerTest extends WebTestCase
         $this->entityManager->flush();
 
         // Verify order structure
-        $this->assertEquals(1, count($order->getOrderLines()));
-        $this->assertEquals('DETAIL-001', $order->getOrderLines()[0]->getProduct()->getSku());
-        $this->assertEquals(1499, $order->getOrderLines()[0]->getUnitPrice());
+        $this->assertNotNull($line->getId());
+        $this->assertEquals('DETAIL-001', $line->getProduct()->getSku());
+        $this->assertEquals(1, $line->getQuantity());
     }
 
     /**

@@ -244,4 +244,3 @@ Cela peut indiquer une dépendance entre les tests. Assurez-vous que chaque test
 
 - [Symfony Testing Documentation](https://symfony.com/doc/current/testing.html)
 - [PHPUnit Documentation](https://phpunit.de/)
-- [API Platform Testing Guide](https://api-platform.com/docs/core/testing/)

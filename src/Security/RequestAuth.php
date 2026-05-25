@@ -8,7 +8,10 @@ use Symfony\Component\HttpFoundation\Request;
 
 class RequestAuth
 {
-    public function __construct(private readonly UserRepository $userRepository)
+    public function __construct(
+        private readonly UserRepository $userRepository,
+        private readonly JwtTokenManager $jwtTokenManager,
+    )
     {
     }
 
@@ -17,6 +20,11 @@ class RequestAuth
         $token = $this->extractBearerToken($request);
         if ($token === null) {
             return null;
+        }
+
+        $user = $this->jwtTokenManager->resolveUserFromAccessToken($token);
+        if ($user !== null) {
+            return $user;
         }
 
         return $this->userRepository->findOneBy(['authToken' => $token]);
